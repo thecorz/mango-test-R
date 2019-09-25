@@ -1,0 +1,181 @@
+---
+title: "Mango test Javier Cuadrado Corz"
+output:
+  html_document:
+    df_print: paged
+---
+```{r}
+library('ggplot2')
+library('tidyverse')
+library('GGally')
+library('lubridate')
+```
+
+# Free shots analysis
+## Data cleasing
+```{r}
+df <- read.csv('free_throws.csv', header = TRUE, stringsAsFactors = FALSE)
+head(df)
+```
+```{r}
+str(df)
+```
+
+end_resoult: chr, individual scores should be extracted
+game_id: num should be factor
+period: is numeric should be factor
+play: long string, how many of the free shots were converted
+playoffs: chr, should be factor
+score: chr, should be factor
+season: chr, should be factor
+time: chr, should be time class.
+
+### Time
+Are times the actual time of the day or are they times since the game start?
+They could be times in the format hh:mm or times from start of the game in the format of mm:ss
+Each of the quarters in a basquetball game last 12 min, so we can't really tell those options apart looking at the data.
+Common sense tells me that they are times since start, as time of the day is not very informative in this context.
+The dataset has the period also so that would give us when on the game the free shot was done.
+
+Let's have a look to the distribution of the times
+
+```{r}
+times = as.integer(sapply(df$time, function(x) unlist(strsplit(x, ':'))[1]))
+hist(times)
+```
+Let's assume the format is 'mm:ss'
+
+### Change the data
+
+```{r}
+test <- head(df, 100)
+
+test %>%
+  mutate(
+      elapsed_home_score = as.integer(sapply(test$score, function(x) unlist(strsplit(x, ' - '))[1])),
+      elapsed_away_score = as.integer(sapply(test$score, function(x) unlist(strsplit(x, ' - '))[2]))
+  )
+```
+
+
+```{r}
+# extract end_result scores
+df <- df %>%
+  mutate(
+      # split the scores
+      end_home_score = as.integer(sapply(end_result, function(x) unlist(strsplit(x, ' - '))[1])),
+      end_away_score = as.integer(sapply(end_result, function(x) unlist(strsplit(x, ' - '))[2])),
+      # split the teams
+      home_team = as.character(sapply(game, function(x) unlist(strsplit(x, ' - '))[1])),
+      away_team = as.character(sapply(game, function(x) unlist(strsplit(x, ' - '))[2])),
+      game_id = as.character(game_id),
+      period = as.factor(period),
+      playoffs = as.factor(playoffs),
+      # split the scores
+      elapsed_home_score = as.integer(sapply(score, function(x) unlist(strsplit(x, ' - '))[1])),
+      elapsed_away_score = as.integer(sapply(score, function(x) unlist(strsplit(x, ' - '))[2])),
+      season = as.factor(season),
+      shot_made = as.factor(shot_made),
+      # convert to minutes and seconds
+      min_sec = ms(time)
+  )
+str(df)
+```
+visual check that the scores were stracted correctly
+```{r}
+df[1:100,'end_home_score']
+```
+```{r}
+head(df$end_result, 100)
+```
+
+### Shot_made
+I don't know what shot_made really is. Let's have a look
+```{r}
+df[,c("shot_made", 'play')]
+```
+
+So there is a row for echa free shot. Even when there are two free shots because of a faul there will be two rows, one for each of the free shots. So shot_made tell is if every single shot was made or not
+
+## NA's
+```{r}
+sum(is.na(df))
+```
+
+# Ideas to explore
+*ranking of players with more free shots
+*ranking of players by scoring rate
+*quarter with more free shots: Expected more in last quarter
+
+## Exploratory Data Analysis
+
+```{r}
+summary(df)
+```
+* There are 618.019 records
+* There is a game with 113 shots. That's weird
+* there are records with periods > 4 which is werid. That must be wrong
+* player with most free shots: Lebron, Dwight, Kevin Durant
+* season 2006-07 had the max of free shots
+* More than 75% of the shots were made. 
+* Over 50% of free shots happend in the first 5 min of each period, 25% of them happend aprox in the first 2 min of each period
+```{r, fig.height=1000 fig.with=1000}
+rnd <- runif(1000, min = 0, max = 618019)
+df_pair <- df[rnd,c('period', "playoffs", "season", "shot_made", "end_home_score", "end_away_score", "elapsed_home_score", "elapsed_away_score")]
+ggpairs(df_pair)
+```
+
+
+```{r}
+ggplot(data = df) +
+  geom_bar(aes(x = player, fill = shot_made))+
+  theme(axis.text.x=element_text(angle=20, hjust=1))
+```
+```{r}
+player_shots <- df %>%
+  select(player, shot_made) %>%
+  group_by(player, shot_made) %>%
+  summarise(count=n())
+
+player_shots <- player_shots %>%
+  group_by(player) %>%
+  mutate(
+    total = sum(count),
+    rate = count/sum(count)
+    ) %>%
+  arrange(desc(total))
+
+player_shots %>%
+  group_by(player) %>%
+  mutate(shot_made_rate = if (row_number(rate) = 1)
+```
+
+Players by the number of free shots
+```{r}
+ggplot(data = players_shots[1:50,]) +
+  geom_bar(aes(x = reorder(player, desc(total)), y=count,fill = shot_made), stat='identity')+
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+Players ordered by the shot made ratio
+
+```{r}
+player_shots_made <- player_shots[player_shots$shot_made == 1 & player_shots$count > 500,]
+ggplot(data = arrange(player_shots_made, desc(player_shots_made$rate))[1:30,], aes(x = reorder(player, desc(rate)), y=rate, fill = shot_made)) +
+  geom_bar(stat='identity')+
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+  geom_text(aes(x = reorder(player, desc(rate)), y = rate,
+                                             label = paste0(as.integer(rate*100),"%")), size=2)
+  ```
+
+players by number of free shots made
+```{r}
+ggplot(data = arrange(player_shots_made, desc(player_shots_made$rate))[1:30,], aes(x = reorder(player, desc(count)), y=count)) +
+  geom_bar(stat='identity')+
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+```{r}
+
+```
+
