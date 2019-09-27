@@ -38,8 +38,9 @@ You can find it in the folder as well [`drawsample`](https://github.com/thecorz/
   The libraries needed to run the R scripts are listed in packrat/packrat.lock file. To install the same packages (same versions):
 
 1. Start R in the folder that contains the repo.
-2. Install the R package manager: run install.packages('packrat') on the R terminal
-3. Start a new packrat project: run packrat::init(options = list(auto.snapshot = TRUE)) packrat will find all the packages used in all the projects and try to intall them
+2. Install the R package manager: run `install.packages('packrat')` on the R terminal.
+3. Start a new packrat project: run `packrat::init(options = list(auto.snapshot = TRUE))` 
+4. Install all the packages: run `packrat::restore()`
 
 ### Install the package
 
