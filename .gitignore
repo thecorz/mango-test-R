@@ -6,3 +6,7 @@ packrat/lib*/
 packrat/src/
 .Rproj*
 .Rprofile
+drawsample_pkg/.DS_Store
+drawsample_pkg/drawsample/.Rhistory
+drawsample_pkg/drawsample/.Rproj*
+.DS_Store
