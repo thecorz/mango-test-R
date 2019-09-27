@@ -69,6 +69,7 @@ Let's have a look to the distribution of the times
 times = as.integer(sapply(df$time, function(x) unlist(strsplit(x, ':'))[1]))
 hist(times)
 ```
+
 Let's assume the format is 'mm:ss'
 
 Having a look to the data, it's clear that the times provided is the time left in each period. 
