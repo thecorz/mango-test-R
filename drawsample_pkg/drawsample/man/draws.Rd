@@ -2,7 +2,7 @@
 % Please edit documentation in R/draw_sample.R
 \name{draws}
 \alias{draws}
-\title{Draw a number from a given distribution}
+\title{Draw a sample of a give size from a given distribution}
 \usage{
 draws(n, dist, ...)
 }
@@ -14,12 +14,20 @@ draws(n, dist, ...)
 \item{...}{Numeric, parameters of the distribution}
 }
 \value{
-Returns a list of the values drawn from the distribtuion
+Returns an object of the class 'draws'
+An object of the class 'draws' consist on a list. The first element of the list contains the parameters used.
+The second element of the list contains a vector with the values of the draws.
+The method summary can be called over the object to get the min, 1st quartile, median, mean, 3rd quartile and max of the values drown.
 }
 \description{
 This function returns a given number of draws from
-the specified distribution. The distribution to draw from can be the Normal, Poisson
-or Binomial distributions.
+the specified distribution. The distributions available to draw from are Normal, Poisson or Binomial.
+}
+\details{
+Depending on the specified distribution, the function needs extra parameters:
+Normal distribution: mean and sd (standard desviation)
+Poisson: Lambda
+Binomail: Size and prob (probability)
 }
 \examples{
 # Sample 100 draws from the normal distribtuion wih mean = 0

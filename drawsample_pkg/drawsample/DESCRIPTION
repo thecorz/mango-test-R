@@ -2,9 +2,8 @@ Package: drawsample
 Type: Package
 Title: Draw samples from probability distributions
 Version: 0.1.0
-Authors@R: person("Javier", "Cuadrado Corz", email = "thecorz@gmail.com",
-  role = c("aut", "cre"))
-Description: A wrapper for drawing samples from the Normal, Poisson and Binomial distributions
+Authors@R: person("Javier", "Cuadrado Corz", email = "thecorz@gmail.com", role = c("aut", "cre"))
+Description: A wrapper for drawing samples from the Normal, Poisson and Binomial distributions.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true

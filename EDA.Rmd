@@ -6,29 +6,51 @@ output:
 ---
 ```{r}
 library('ggplot2')
-library('tidyverse')
+library('dplyr')
 library('GGally')
 library('lubridate')
 ```
 
 # Free shots analysis
-## Data cleasing
+
+Task: Read in the csv containing NBA free throws. Visualise some aspect of the data you find interesting, e.g., the average number of free throws per period for the regular season and the playoffs.
+
+## Domain Background
+
+NBA Basketball has the following characteristics:
+* Each of the free shots adds one point to the score
+* Games are played by two teams, of 5 payers each.
+* One game is divided in 4 quarters of 12 minutes of duration
+* Free shots are shots throuwn by a player without any opposition. A free shot happen as a consequence of a foul done over the player that is throwing the free shot. If the foul happen within the 2 points area, the player is given 2 free shots. If the foul happen in the three points area, then the player has 3 free shots. One free shot is given when there was a foul when the player was shoting and he converted the shot.
+* A seasson of the league has two different periods:
+  * Regular season: each team plays 82 games, 41 each home and away. All teams play against each other, but in a unbalanced manner
+  * Playoffs: The playoffs follow a tournament format. Each team plays an opponent in a best-of-seven series, with the first team to win four games advancing into the next round, while the other team is eliminated from the playoffs
+* There is one season per year
+
+## Exploring the data
 ```{r}
-df <- read.csv('free_throws.csv', header = TRUE, stringsAsFactors = FALSE)
+df <- read.csv('data/free_throws.csv', header = TRUE, stringsAsFactors = FALSE)
 head(df)
 ```
+
+### Variable summary
+Let's have a look to the variables
+
 ```{r}
 str(df)
 ```
-
-end_resoult: chr, individual scores should be extracted
-game_id: num should be factor
-period: is numeric should be factor
-play: long string, how many of the free shots were converted
-playoffs: chr, should be factor
-score: chr, should be factor
-season: chr, should be factor
-time: chr, should be time class.
+### Variable definitions
+end_result: final score of the game
+game: Teams that played
+game_id: id reference for each of the games
+period: Period of the game the free shot happened
+play: Phrase with the name of the player that is throwing the free shot, if he made the free shot and the order of the free shots. 
+player: Name of the player
+playoffs: The game was in the regular season or in playoffs
+score: The score after the free shot was made
+season: The season the game was played
+shot_made: did the ball got in the basket?
+time: minutes and seconds left to the end of the period
 
 ### Time
 Are times the actual time of the day or are they times since the game start?
@@ -45,43 +67,69 @@ hist(times)
 ```
 Let's assume the format is 'mm:ss'
 
-### Change the data
+Having a look to the data, it's clear that the times provided is the time left in each period. 
 
+### `Shot_made`
+I don't know what shot_made really is. Let's have a look
 ```{r}
-test <- head(df, 100)
-
-test %>%
-  mutate(
-      elapsed_home_score = as.integer(sapply(test$score, function(x) unlist(strsplit(x, ' - '))[1])),
-      elapsed_away_score = as.integer(sapply(test$score, function(x) unlist(strsplit(x, ' - '))[2]))
-  )
+df[,c("shot_made", 'play')]
 ```
 
+So there is a row for echa free shot. Even when there are two free shots because of a foul there will be two rows, one for each of the free shots. So shot_made tell is if every single shot was made or not
+
+### NA's
+```{r}
+sum(is.na(df))
+```
+There si no missing data.
+
+## Transforming the data
+Data wrangling
+
+### Trasnformations required
+end_result: chr, individual scores should be extracted
+game: chr, individual scores should be extracted
+period: numeric, it should be factor
+playoffs: chr, should be factor
+score: chr, individual scores should be extracted
+season: chr, should be factor
+time: chr, should be time type of data
+time: create a new variable with elapsed time of each period
 
 ```{r}
-# extract end_result scores
 df <- df %>%
   mutate(
+      ## Trasform variables
+      game_id = as.character(game_id),
+      period = as.factor(period),
+      playoffs = as.factor(playoffs),
+      season = as.factor(season),
+      shot_made = as.factor(shot_made),
+      
+      ## New variables
       # split the scores
       end_home_score = as.integer(sapply(end_result, function(x) unlist(strsplit(x, ' - '))[1])),
       end_away_score = as.integer(sapply(end_result, function(x) unlist(strsplit(x, ' - '))[2])),
       # split the teams
       home_team = as.character(sapply(game, function(x) unlist(strsplit(x, ' - '))[1])),
       away_team = as.character(sapply(game, function(x) unlist(strsplit(x, ' - '))[2])),
-      game_id = as.character(game_id),
-      period = as.factor(period),
-      playoffs = as.factor(playoffs),
       # split the scores
       elapsed_home_score = as.integer(sapply(score, function(x) unlist(strsplit(x, ' - '))[1])),
       elapsed_away_score = as.integer(sapply(score, function(x) unlist(strsplit(x, ' - '))[2])),
-      season = as.factor(season),
-      shot_made = as.factor(shot_made),
-      # convert to minutes and seconds
-      min_sec = ms(time)
+      # time
+      time_min_sec = ms(time),
+      time_dur_sec = dminutes(12) - as.duration(time_min_sec),
+      time_elapsed_min_sec = as.period(time_dur_sec),
+      time_elapsed_min = as.numeric(time_elapsed_min_sec, "minutes"),
+      time_elapsed_sec = as.numeric(time_elapsed_min_sec, "seconds"),
   )
 str(df)
 ```
-visual check that the scores were stracted correctly
+```{r}
+head(df)
+```
+
+visual check that the scores were extracted correctly
 ```{r}
 df[1:100,'end_home_score']
 ```
@@ -89,26 +137,25 @@ df[1:100,'end_home_score']
 head(df$end_result, 100)
 ```
 
-### Shot_made
-I don't know what shot_made really is. Let's have a look
-```{r}
-df[,c("shot_made", 'play')]
-```
-
-So there is a row for echa free shot. Even when there are two free shots because of a faul there will be two rows, one for each of the free shots. So shot_made tell is if every single shot was made or not
-
-## NA's
-```{r}
-sum(is.na(df))
-```
-
 # Ideas to explore
-*ranking of players with more free shots
-*ranking of players by scoring rate
-*quarter with more free shots: Expected more in last quarter
+* Ranking of players with more free shots
+* Ranking of players by scoring rate
+* Quarter with more free shots: Expected more in last quarter
+* Potential subject of analysis:
+  * Players ~ shots
+  * Teams ~ shots
+  * Seasons ~ shots
+  * Periods ~ shots
+  * Time in period ~ shots
+  * Time in game ~ shots
+* More involved:
+  * Distribution of the number of free shots per game
+  * Which games have more free shots, therefore more fouls?
+  * Are there more free shots at the end of a game, more fouls at the end of a game, Hack A Shack?
 
 ## Exploratory Data Analysis
 
+### Summary statistics
 ```{r}
 summary(df)
 ```
@@ -119,18 +166,173 @@ summary(df)
 * season 2006-07 had the max of free shots
 * More than 75% of the shots were made. 
 * Over 50% of free shots happend in the first 5 min of each period, 25% of them happend aprox in the first 2 min of each period
-```{r, fig.height=1000 fig.with=1000}
-rnd <- runif(1000, min = 0, max = 618019)
-df_pair <- df[rnd,c('period', "playoffs", "season", "shot_made", "end_home_score", "end_away_score", "elapsed_home_score", "elapsed_away_score")]
-ggpairs(df_pair)
+
+### general overview of the relationship of the variables
+
+#### Scores by season and playoffs
+```{r fig.height=15, fig.width=15, message=FALSE, warning=FALSE}
+df_pair_end_score <- df[,c("playoffs", "season", "end_home_score", "end_away_score")]
+ggpairs(df_pair_end_score, labeller = "label_context") + theme_grey(base_size = 30)
+```
+The sixth season (2011 - 2012) has a considerable drop in the number of free shots in the regular season.
+The mean and median of the home_end_score and away_end_score are at around 100 points
+home_end_score and away_end_score look like they are correlarted
+Not much variation in the end scores among seassons, but again the end scores of the sixth season (2011 - 2012), lower than the rest
+
+#### Shots made by factors and time
+```{r fig.height=15, fig.width=15, message=FALSE, warning=FALSE}
+df_pair_shot_made <- df[,c('period', "playoffs", "season", "time_min", "shot_made")]
+ggpairs(df_pair_shot_made) + theme_grey(base_size = 30)
+```
+* Free shots are more frequent at the end of the period and the frequency increase over time within the same period.
+* The 4th period has more fres shots than any other periods. The number of free shots increases from 1st to the 4th period.
+
+
+## Are there more free shots at the end of a game, more fouls at the end of a game, Hack-A-Shack strategy?
+Hack-A-Shack was a common strategy in the NBA used in the last minutes of the game when a team was behind in the score. The strategy consists in committing intentional fouls throughout the game against selected opponents who shot free throws poorly. The trailing team fouls intentionally to end the opponents' possession as soon as possible.
+More info following this link https://en.wikipedia.org/wiki/Hack-a-Shaq
+
+Let's have a look at the distributions of times of the free shots in the 4 quarter
+
+```{r}
+p <- ggplot(data = df[df$period == 4,]) +
+  geom_bar(aes(x=floor(time_elapsed_min)))
+p
+```
+Interestingly, as we saw before, there is a spike on the number of the free shots in the last minute of the 4th period. There are free shots that happen when there is 0 seconds left (the 12 min bar). This free shots should really be in the 11th bar.
+
+Let's transform the 00:00 times into 00:01 so they belong to the 11th minute
+
+```{r}
+df[df$time_min_sec == period(0), "time_min_sec"] <- duration(1, "second")
+# Check there is not more rows with perio = 0
+df[df$time_min_sec == period(0),]
+```
+Modify the rest of the time variables accordingly
+```{r}
+df <- df%>%
+    mutate(
+      time_dur_sec = dminutes(12) - as.duration(time_min_sec),
+      time_elapsed_min_sec = as.period(time_dur_sec),
+      time_elapsed_min = as.numeric(time_elapsed_min_sec, "minutes"),
+      time_elapsed_sec = as.numeric(time_elapsed_min_sec, "seconds"),
+    )
 ```
 
+Same graph
+```{r}
+p <- ggplot(data = df[df$period == 4,]) +
+  geom_bar(aes(x=floor(time_elapsed_min)))
+p
+```
+
+Let's have a look to the other periods as well
+```{r fig.height=15, fig.width=15, message=FALSE, warning=FALSE}}
+ggplot(data = df[df$period %in% c(1,2,3,4),]) +
+  geom_bar(aes(x=floor(time_elapsed_min))) +
+  facet_grid(rows = vars(period))
+```
+There is masive jump in the 11th minute of the 4th period. It definitely shows that teams are using hack-a-shack strategy quite a lot.
+
+There has been numerous changes in the NBA rules to disencourage deliberate fouling. So the general pattern we see here might be caused by a change in the rules. This link follows the changes in the rules of the NBA with a brief commentary
+
+Let's have a look at the same histogram by season
+
+```{r fig.height=15, fig.width=15, message=FALSE, warning=FALSE}}
+ggplot(data = df[df$period == 4,]) +
+  geom_bar(aes(x=floor(time_elapsed_min))) +
+  facet_grid(rows = vars(season))
+```
+
+All the sessions follow the general pattern. Checking the rules changes during the the period covered by the data, there was not changes in the rules affecting the hack-a-shack strategy.
+
+The strategy is only useful for games that are very close in their score. We can check if the games that have a closer score had more free shots at the end of the 4th period.
+
+```{r}
+ggplot(data = df[abs(df$end_home_score-df$end_away_score) < 12  & df$period == 4,]) +
+  geom_bar(aes(x=floor(time_elapsed_min)))
+```
+
+It looks like the tighter the final score was the more fouls were committed in the last minute of the game.
+
+We can check as well if this effect is observed in both the regular season and the playoffs
+
+
+```{r fig.height=15, fig.width=15, message=FALSE, warning=FALSE}}
+ggplot(data = df[df$period %in% c(1,2,3,4),]) +
+  geom_bar(aes(x=floor(time_elapsed_min))) +
+  facet_grid(cols = vars(period), rows = vars(playoffs))
+```
+
+It's hard to see the effect on the plays offs because of the scale of the y axis.
+
+```{r}
+ggplot(data = df[df$period %in% c(1,2,3,4) & df$playoffs == 'playoffs',]) +
+  geom_bar(aes(x=floor(time_elapsed_min))) +
+  facet_grid(cols = vars(period))
+```
+
+There is a sharp increase in the number of free shots in the 11th minute of the 4th period. 
+
+Let's have a look to see if we can see if there's any relation between how close the end score was and how many fouls were commited in the 11th minute of the 4th period
+
+```{r}
+# Select the free shots from the 11th minute of the 4th period. Our study object is the game for this hypothesis
+last_min <- df[floor(df$time_elapsed_min) == 11 & df$period == 4, c("end_home_score", "end_away_score", "game_id")]
+last_min_game <- last_min %>%
+  group_by(game_id, end_home_score, end_away_score) %>%
+  summarise(total_free_shots = n())
+last_min_game <- last_min_game %>%
+  mutate(
+    end_score_diff = abs(end_home_score - end_away_score)
+  )
+head(last_min_game)
+```
+
+Let's have a look to the distributins of the variables
+```{r}
+breaks_free_shots <- seq(1,max(last_min_game$total_free_shots),1)
+hist(last_min_game$total_free_shots, breaks = breaks_lim)
+```
+It's more of a poisson distribution
+
+```{r}
+breaks_end_score_diff <- seq(1,max(last_min_game$end_score_diff),1)
+hist(last_min_game$end_score_diff, breaks = breaks_end_score_diff)
+hist(log(last_min_game$end_score_diff))
+```
+
+So the distribution of the two variables are not normal. I shouldn't use normal linear regression because the response variable is not normally distributed. The number of free shots in the 11th minute of the 4th period is a count variable which probably follows a poisson distribution. So let's try a poisson regression
+
+```{r}
+poisson_regression <- glm(total_free_shots ~ end_score_diff, data = last_min_game, family = poisson(link = 'log'))
+summary(poisson_regression)
+```
+
+```{r}
+ggplot(last_min_game, aes(x = end_score_diff, y = total_free_shots)) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red")
+```
+
+
+
+
+
+```{r}
+df[df$end_home_score-df$end_away_score < 8 & df$period == 4,]
+```
+
+
+
+## Players
 
 ```{r}
 ggplot(data = df) +
   geom_bar(aes(x = player, fill = shot_made))+
   theme(axis.text.x=element_text(angle=20, hjust=1))
 ```
+
 ```{r}
 player_shots <- df %>%
   select(player, shot_made) %>%
@@ -145,20 +347,19 @@ player_shots <- player_shots %>%
     ) %>%
   arrange(desc(total))
 
-player_shots %>%
-  group_by(player) %>%
-  mutate(shot_made_rate = if (row_number(rate) = 1)
+# player_shots %>%
+#   group_by(player) %>%
+  # mutate(shot_made_rate = if (row_number(rate) = 1)
 ```
 
 Players by the number of free shots
 ```{r}
-ggplot(data = players_shots[1:50,]) +
+ggplot(data = player_shots[1:50,]) +
   geom_bar(aes(x = reorder(player, desc(total)), y=count,fill = shot_made), stat='identity')+
   theme(axis.text.x=element_text(angle=45, hjust=1))
 ```
 
 Players ordered by the shot made ratio
-
 ```{r}
 player_shots_made <- player_shots[player_shots$shot_made == 1 & player_shots$count > 500,]
 ggplot(data = arrange(player_shots_made, desc(player_shots_made$rate))[1:30,], aes(x = reorder(player, desc(rate)), y=rate, fill = shot_made)) +
@@ -166,7 +367,7 @@ ggplot(data = arrange(player_shots_made, desc(player_shots_made$rate))[1:30,], a
   theme(axis.text.x=element_text(angle=45, hjust=1))+
   geom_text(aes(x = reorder(player, desc(rate)), y = rate,
                                              label = paste0(as.integer(rate*100),"%")), size=2)
-  ```
+```
 
 players by number of free shots made
 ```{r}

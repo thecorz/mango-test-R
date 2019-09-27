@@ -19,20 +19,32 @@
 
 # S3 Class generator function
 
+library(stats)
+
 #' @export
 draws <- function(n, dist, ...) {
-  #' @title Draw a number from a given distribution
+  #' @title Draw a sample of a give size from a given distribution
   #'
   #'
   #' @description This function returns a given number of draws from
-  #' the specified distribution. The distribution to draw from can be the Normal, Poisson
-  #' or Binomial distributions.
+  #' the specified distribution. The distributions available to draw from are Normal, Poisson or Binomial.
   #'
   #' @param n Numeric. The number of draws.
   #' @param dist String. The distribution numbers are going to be drawn from.
   #' @param ... Numeric, parameters of the distribution
   #'
-  #' @return Returns a list of the values drawn from the distribtuion
+  #' @details
+  #' Depending on the specified distribution, the function needs extra parameters:
+  #' Normal distribution: mean and sd (standard desviation)
+  #' Poisson: Lambda
+  #' Binomail: Size and prob (probability)
+  #'
+  #'
+  #' @return
+  #' Returns an object of the class 'draws'
+  #' An object of the class 'draws' consist on a list. The first element of the list contains the parameters used.
+  #' The second element of the list contains a vector with the values of the draws.
+  #' The method summary can be called over the object to get the min, 1st quartile, median, mean, 3rd quartile and max of the values drown.
   #'
   #' @examples
   #' # Sample 100 draws from the normal distribtuion wih mean = 0
@@ -62,17 +74,17 @@ draws <- function(n, dist, ...) {
   if (dist == "normal"){
     if(is.null(kwargs[["mean"]]) || is.null(kwargs[["sd"]])){
       stop("normal distribution requires mean and sd parameters")}
-    draws_list$samples <- rnorm(n, mean = kwargs$mean, sd = kwargs$sd)
+    draws_list$sample <- rnorm(n, mean = kwargs$mean, sd = kwargs$sd)
   }
   else if (dist == "poisson"){
     if(is.null(kwargs[["lambda"]])){
       stop("poisson distribution requires the lambda parameter")}
-    draws_list$samples <- rpois(n, lambda = kwargs$lambda)
+    draws_list$sample <- rpois(n, lambda = kwargs$lambda)
   }
   else{
     if(is.null(kwargs[["size"]] || is.null(kwargs[["prob"]]))){
       stop("binomial distribution requires size and prob parameters")}
-    draws_list$samples <- rbinom(n, size = kwargs$size, prob = kwargs$prob)
+    draws_list$sample <- rbinom(n, size = kwargs$size, prob = kwargs$prob)
   }
 
   attr(draws_list, "class") <- "draws"
@@ -81,8 +93,8 @@ draws <- function(n, dist, ...) {
 
 # summary method
 #' @export
-summary.draws <- function(obj){
-  summary(obj$samples)
+summary.draws <- function(object, ...){
+  summary(object$sample)
 }
 
 # testing
